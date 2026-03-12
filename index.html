@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Master Mind – retroversio</title>
+  <style>
+    :root{
+      --bg1:#4a2f1d;
+      --bg2:#2f1d12;
+      --wood1:#7a4f2b;
+      --wood2:#5f3c22;
+      --wood3:#8c5e35;
+      --brass:#c7a86b;
+      --brass-dark:#927543;
+      --panel:#26180f;
+      --hole:#20140c;
+      --hole-rim:#4b2f1c;
+      --text:#f2e2ba;
+      --muted:#d0bc8a;
+      --ivory:#f0eadc;
+      --black:#181818;
+      --row-gap:12px;
+      --peg:30px;
+      --hint:10px;
+    }
+
+    * { box-sizing:border-box; }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: Georgia, "Times New Roman", serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 20% 10%, rgba(255,255,255,.06), transparent 18%),
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,.04), transparent 22%),
+        linear-gradient(180deg, #2f1d12 0%, #4b2f1d 45%, #2a180f 100%);
+      padding:18px;
+    }
+
+    .frame{
+      max-width:980px;
+      margin:0 auto;
+      border:3px solid #2a180f;
+      border-radius:24px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.06), rgba(0,0,0,.15)),
+        repeating-linear-gradient(
+          90deg,
+          var(--wood1) 0px,
+          var(--wood1) 16px,
+          var(--wood2) 16px,
+          var(--wood2) 32px,
+          var(--wood3) 32px,
+          var(--wood3) 48px
+        );
+      box-shadow:
+        0 14px 40px rgba(0,0,0,.42),
+        inset 0 2px 0 rgba(255,255,255,.08),
+        inset 0 -3px 0 rgba(0,0,0,.2);
+      overflow:hidden;
+    }
+
+    .header{
+      padding:20px 22px 14px;
+      border-bottom:2px solid rgba(0,0,0,.25);
+      background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(255,255,255,.03));
+    }
+
+    .title-wrap{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(32px, 5vw, 56px);
+      line-height:1;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:#f7e7b6;
+      text-shadow:
+        0 2px 0 #4e341f,
+        0 3px 8px rgba(0,0,0,.45);
+    }
+
+    .subtitle{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.4;
+      max-width:620px;
+    }
+
+    .badge{
+      padding:10px 14px;
+      border-radius:14px;
+      border:1px solid var(--brass-dark);
+      background:linear-gradient(180deg, #5f4727, #3c2a17);
+      color:#f6e8c6;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+      min-width:180px;
+    }
+
+    .badge small{
+      display:block;
+      color:#d8c18a;
+      margin-bottom:4px;
+      font-size:12px;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+    }
+
+    .content{
+      display:grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap:18px;
+      padding:18px;
+    }
+
+    .board-shell, .side{
+      border-radius:20px;
+      border:2px solid rgba(0,0,0,.22);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.16)),
+        linear-gradient(90deg, #734a29, #5b391f);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.06),
+        inset 0 -2px 0 rgba(0,0,0,.14);
+    }
+
+    .board-shell{
+      padding:18px;
+    }
+
+    .side{
+      padding:16px;
+    }
+
+    .board{
+      display:grid;
+      gap:var(--row-gap);
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns: 48px 1fr 74px;
+      align-items:center;
+      gap:12px;
+      padding:8px 8px;
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(0,0,0,.12), rgba(255,255,255,.02));
+    }
+
+    .row.active{
+      box-shadow:0 0 0 2px rgba(240, 215, 151, .38) inset;
+    }
+
+    .row-num{
+      color:#ead7a4;
+      text-align:center;
+      font-size:15px;
+    }
+
+    .slots{
+      display:flex;
+      gap:12px;
+    }
+
+    .slot{
+      width:var(--peg);
+      height:var(--peg);
+      border-radius:50%;
+      border:none;
+      position:relative;
+      background:radial-gradient(circle at 35% 35%, #453022 0%, #24170f 65%, #150d08 100%);
+      box-shadow:
+        inset 0 2px 3px rgba(255,255,255,.05),
+        inset 0 -2px 4px rgba(0,0,0,.55),
+        0 1px 0 rgba(255,255,255,.05);
+      cursor:pointer;
+    }
+
+    .slot::after{
+      content:"";
+      position:absolute;
+      inset:3px;
+      border-radius:50%;
+      border:1px solid rgba(255,255,255,.06);
+      pointer-events:none;
+    }
+
+    .slot.selected{
+      outline:2px solid rgba(255, 233, 180, .72);
+      outline-offset:3px;
+    }
+
+    .slot.filled{
+      box-shadow:
+        inset 0 2px 3px rgba(255,255,255,.25),
+        inset 0 -3px 6px rgba(0,0,0,.35),
+        0 1px 0 rgba(255,255,255,.12);
+    }
+
+    .hints{
+      display:grid;
+      grid-template-columns:repeat(2, var(--hint));
+      grid-template-rows:repeat(2, var(--hint));
+      justify-content:end;
+      gap:6px;
+      padding-right:4px;
+    }
+
+    .hint{
+      width:var(--hint);
+      height:var(--hint);
+      border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #564130 0%, #21150e 75%);
+      border:1px solid rgba(255,255,255,.05);
+    }
+
+    .hint.exact{
+      background:radial-gradient(circle at 35% 35%, #4e4e4e 0%, #101010 75%);
+      border-color:rgba(255,255,255,.15);
+    }
+
+    .hint.color{
+      background:radial-gradient(circle at 35% 35%, #ffffff 0%, #e6ddcc 70%, #c7bca5 100%);
+      border-color:rgba(0,0,0,.2);
+    }
+
+    .section-title{
+      font-size:14px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:#f0deb0;
+      margin:0 0 10px 0;
+    }
+
+    .secret{
+      display:flex;
+      gap:10px;
+      margin:10px 0 18px;
+    }
+
+    .secret-slot{
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      background:radial-gradient(circle at 35% 35%, #453022 0%, #24170f 65%, #150d08 100%);
+      box-shadow:
+        inset 0 2px 3px rgba(255,255,255,.05),
+        inset 0 -2px 4px rgba(0,0,0,.55);
+    }
+
+    .palette{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:10px;
+      margin-bottom:16px;
+    }
+
+    .color-btn{
+      height:42px;
+      border:none;
+      border-radius:999px;
+      cursor:pointer;
+      box-shadow:
+        inset 0 2px 3px rgba(255,255,255,.28),
+        inset 0 -3px 6px rgba(0,0,0,.28),
+        0 2px 0 rgba(0,0,0,.18);
+    }
+
+    .controls{
+      display:grid;
+      gap:10px;
+      margin-top:14px;
+    }
+
+    button.ctrl{
+      font:inherit;
+      font-size:15px;
+      color:#f5e7c1;
+      padding:11px 12px;
+      border-radius:14px;
+      cursor:pointer;
+      border:1px solid var(--brass-dark);
+      background:linear-gradient(180deg, #68502b, #3a2917);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+    }
+
+    button.ctrl.primary{
+      background:linear-gradient(180deg, #866536, #50381f);
+    }
+
+    button.ctrl:hover, .color-btn:hover{
+      filter:brightness(1.06);
+    }
+
+    button.ctrl:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .legend, .status, .small{
+      color:#e8d7ab;
+      font-size:14px;
+      line-height:1.5;
+    }
+
+    .small{
+      color:#d8c390;
+      font-size:13px;
+    }
+
+    .status{
+      min-height:42px;
+      margin-top:14px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:rgba(0,0,0,.15);
+      border:1px solid rgba(255,255,255,.05);
+    }
+
+    .status.ok{ color:#c7f0b9; }
+    .status.bad{ color:#ffc6b2; }
+
+    .legend ul{
+      margin:8px 0 0 18px;
+      padding:0;
+    }
+
+    .legend li{ margin:4px 0; }
+
+    .footer-note{
+      margin-top:14px;
+      color:#d7c08a;
+      font-size:12px;
+    }
+
+    @media (max-width: 860px){
+      .content{ grid-template-columns:1fr; }
+      .side{ order:-1; }
+    }
+
+    @media (max-width: 560px){
+      :root{
+        --peg:26px;
+        --hint:9px;
+      }
+      .row{
+        grid-template-columns:38px 1fr 64px;
+        gap:8px;
+      }
+      .slots{
+        gap:8px;
+      }
+      .palette{
+        grid-template-columns:repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="header">
+      <div class="title-wrap">
+        <div>
+          <h1>MASTER MIND</h1>
+          <div class="subtitle">
+            Päättele salainen neljän värin rivi. Musta vihjenasta tarkoittaa oikeaa väriä oikeassa paikassa.
+            Valkoinen vihjenasta tarkoittaa oikeaa väriä väärässä paikassa.
+          </div>
+        </div>
+        <div class="badge">
+          <small>Klassinen logiikkapeli</small>
+          4 paikkaa · 6 väriä · 10 yritystä
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="board-shell">
+        <div class="board" id="board"></div>
+      </div>
+
+      <div class="side">
+        <div class="section-title">Salainen rivi</div>
+        <div class="secret" id="secretPreview">
+          <div class="secret-slot"></div>
+          <div class="secret-slot"></div>
+          <div class="secret-slot"></div>
+          <div class="secret-slot"></div>
+        </div>
+
+        <div class="section-title">Värit</div>
+        <div class="palette" id="palette"></div>
+
+        <div class="controls">
+          <button class="ctrl primary" id="checkBtn">Tarkista rivi</button>
+          <button class="ctrl" id="clearBtn">Tyhjennä rivi</button>
+          <button class="ctrl" id="newBtn">Uusi peli</button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div class="legend" style="margin-top:14px;">
+          Ohjaus:
+          <ul>
+            <li>napauta reikää valitaksesi tai vaihtaaksesi väriä</li>
+            <li>nuoli vasen/oikea siirtää valintaa</li>
+            <li>nuoli ylös/alas vaihtaa väriä</li>
+            <li>Enter tarkistaa rivin</li>
+          </ul>
+        </div>
+
+        <div class="footer-note">
+          Retrohenkinen selainversio klassisesta Master Mind -pelistä.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const COLORS = [
+      { key: "red",    name: "Punainen", color: "#cf3a2b" },
+      { key: "blue",   name: "Sininen",  color: "#2f71c7" },
+      { key: "green",  name: "Vihreä",   color: "#2d944a" },
+      { key: "yellow", name: "Keltainen",color: "#d8b31b" },
+      { key: "white",  name: "Valkoinen",color: "#ece7d9" },
+      { key: "black",  name: "Musta",    color: "#111111" }
+    ];
+
+    const CODE_LENGTH = 4;
+    const MAX_ROWS = 10;
+
+    let secret = [];
+    let guesses = [];
+    let currentRow = 0;
+    let selectedSlot = 0;
+    let gameOver = false;
+
+    const boardEl = document.getElementById("board");
+    const paletteEl = document.getElementById("palette");
+    const statusEl = document.getElementById("status");
+    const secretPreviewEl = document.getElementById("secretPreview");
+    const checkBtn = document.getElementById("checkBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const newBtn = document.getElementById("newBtn");
+
+    function randInt(max) {
+      return Math.floor(Math.random() * max);
+    }
+
+    function makeSecret() {
+      return Array.from({ length: CODE_LENGTH }, () => randInt(COLORS.length));
+    }
+
+    function createEmptyGuess() {
+      return { pegs: Array(CODE_LENGTH).fill(null), hints: [] };
+    }
+
+    function setStatus(text, type="") {
+      statusEl.textContent = text;
+      statusEl.className = "status" + (type ? " " + type : "");
+    }
+
+    function buildPalette() {
+      paletteEl.innerHTML = "";
+      COLORS.forEach((c, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "color-btn";
+        btn.style.background = `radial-gradient(circle at 35% 30%, rgba(255,255,255,.5) 0%, ${c.color} 35%, ${shadeColor(c.color, -20)} 100%)`;
+        btn.title = c.name;
+        btn.setAttribute("aria-label", c.name);
+        btn.addEventListener("click", () => {
+          if (gameOver) return;
+          guesses[currentRow].pegs[selectedSlot] = idx;
+          renderBoard();
+        });
+        paletteEl.appendChild(btn);
+      });
+    }
+
+    function shadeColor(hex, percent) {
+      const num = parseInt(hex.replace("#",""), 16);
+      const amt = Math.round(2.55 * percent);
+      const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+      const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+      const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+      return "#" + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
+    }
+
+    function slotBackground(pegIndex) {
+      const c = COLORS[pegIndex].color;
+      return `radial-gradient(circle at 35% 30%, rgba(255,255,255,.55) 0%, ${c} 34%, ${shadeColor(c, -24)} 100%)`;
+    }
+
+    function renderSecret(reveal) {
+      secretPreviewEl.innerHTML = "";
+      for (let i = 0; i < CODE_LENGTH; i++) {
+        const d = document.createElement("div");
+        d.className = "secret-slot";
+        if (reveal) {
+          d.style.background = slotBackground(secret[i]);
+        }
+        secretPreviewEl.appendChild(d);
+      }
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+      guesses.forEach((guess, rowIndex) => {
+        const row = document.createElement("div");
+        row.className = "row" + (rowIndex === currentRow && !gameOver ? " active" : "");
+
+        const num = document.createElement("div");
+        num.className = "row-num";
+        num.textContent = rowIndex + 1;
+        row.appendChild(num);
+
+        const slots = document.createElement("div");
+        slots.className = "slots";
+
+        guess.pegs.forEach((peg, slotIndex) => {
+          const slot = document.createElement("button");
+          slot.className = "slot";
+          if (rowIndex === currentRow && slotIndex === selectedSlot && !gameOver) {
+            slot.classList.add("selected");
+          }
+          if (peg !== null) {
+            slot.classList.add("filled");
+            slot.style.background = slotBackground(peg);
+          }
+          slot.addEventListener("click", () => {
+            if (gameOver || rowIndex !== currentRow) return;
+            selectedSlot = slotIndex;
+            cycleSlotColor(currentRow, slotIndex);
+            renderBoard();
+          });
+          slots.appendChild(slot);
+        });
+
+        row.appendChild(slots);
+
+        const hints = document.createElement("div");
+        hints.className = "hints";
+        guess.hints.forEach(h => {
+          const hint = document.createElement("div");
+          hint.className = "hint " + h;
+          hints.appendChild(hint);
+        });
+        while (hints.children.length < CODE_LENGTH) {
+          const hint = document.createElement("div");
+          hint.className = "hint";
+          hints.appendChild(hint);
+        }
+        row.appendChild(hints);
+
+        boardEl.appendChild(row);
+      });
+    }
+
+    function cycleSlotColor(rowIndex, slotIndex) {
+      const current = guesses[rowIndex].pegs[slotIndex];
+      guesses[rowIndex].pegs[slotIndex] = current === null ? 0 : (current + 1) % COLORS.length;
+    }
+
+    function clearCurrentRow() {
+      if (gameOver) return;
+      guesses[currentRow].pegs = Array(CODE_LENGTH).fill(null);
+      renderBoard();
+      setStatus("Aktiivinen rivi tyhjennetty.");
+    }
+
+    function scoreGuess(guessPegs, secretPegs) {
+      let exact = 0;
+      const secretRest = [];
+      const guessRest = [];
+
+      for (let i = 0; i < CODE_LENGTH; i++) {
+        if (guessPegs[i] === secretPegs[i]) {
+          exact++;
+        } else {
+          guessRest.push(guessPegs[i]);
+          secretRest.push(secretPegs[i]);
+        }
+      }
+
+      let colorOnly = 0;
+      const counts = {};
+      for (const peg of secretRest) counts[peg] = (counts[peg] || 0) + 1;
+      for (const peg of guessRest) {
+        if (counts[peg] > 0) {
+          colorOnly++;
+          counts[peg]--;
+        }
+      }
+
+      return {
+        exact,
+        colorOnly,
+        hints: [...Array(exact).fill("exact"), ...Array(colorOnly).fill("color")]
+      };
+    }
+
+    function updateButtons() {
+      checkBtn.disabled = gameOver;
+      clearBtn.disabled = gameOver;
+    }
+
+    function checkCurrentRow() {
+      if (gameOver) return;
+      const row = guesses[currentRow];
+
+      if (row.pegs.some(v => v === null)) {
+        setStatus("Täytä ensin kaikki neljä paikkaa.", "bad");
+        return;
+      }
+
+      const result = scoreGuess(row.pegs, secret);
+      row.hints = result.hints;
+      renderBoard();
+
+      if (result.exact === CODE_LENGTH) {
+        gameOver = true;
+        renderSecret(true);
+        setStatus(`Ratkaisit salaisen rivin yrityksellä ${currentRow + 1}.`, "ok");
+        updateButtons();
+        return;
+      }
+
+      if (currentRow === MAX_ROWS - 1) {
+        gameOver = true;
+        renderSecret(true);
+        setStatus("Yritykset loppuivat. Salainen rivi paljastettiin.", "bad");
+        updateButtons();
+        return;
+      }
+
+      currentRow++;
+      selectedSlot = 0;
+      renderBoard();
+      setStatus("Vihjeet annettu. Jatka seuraavalle riville.");
+    }
+
+    function initGame() {
+      secret = makeSecret();
+      guesses = Array.from({ length: MAX_ROWS }, () => createEmptyGuess());
+      currentRow = 0;
+      selectedSlot = 0;
+      gameOver = false;
+      renderSecret(false);
+      renderBoard();
+      setStatus("Uusi peli aloitettu.");
+      updateButtons();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (gameOver) return;
+
+      if (e.key === "ArrowLeft") {
+        selectedSlot = Math.max(0, selectedSlot - 1);
+        renderBoard();
+      } else if (e.key === "ArrowRight") {
+        selectedSlot = Math.min(CODE_LENGTH - 1, selectedSlot + 1);
+        renderBoard();
+      } else if (e.key === "ArrowUp") {
+        cycleSlotColor(currentRow, selectedSlot);
+        renderBoard();
+      } else if (e.key === "ArrowDown") {
+        const current = guesses[currentRow].pegs[selectedSlot];
+        guesses[currentRow].pegs[selectedSlot] = current === null ? COLORS.length - 1 : (current - 1 + COLORS.length) % COLORS.length;
+        renderBoard();
+      } else if (e.key === "Enter") {
+        checkCurrentRow();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        guesses[currentRow].pegs[selectedSlot] = null;
+        renderBoard();
+      } else {
+        const n = Number(e.key);
+        if (n >= 1 && n <= COLORS.length) {
+          guesses[currentRow].pegs[selectedSlot] = n - 1;
+          renderBoard();
+        }
+      }
+    });
+
+    checkBtn.addEventListener("click", checkCurrentRow);
+    clearBtn.addEventListener("click", clearCurrentRow);
+    newBtn.addEventListener("click", initGame);
+
+    buildPalette();
+    initGame();
+  </script>
+</body>
+</html>
