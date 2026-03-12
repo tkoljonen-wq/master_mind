@@ -459,7 +459,7 @@
         <div class="legend" style="margin-top:14px;">
           Ohjaus:
           <ul>
-            <li>napauta reikää valitaksesi tai vaihtaaksesi väriä</li>
+            <li>napauta reikää valitaksesi sen, valitse väri väripaletista</li>
             <li>nuoli vasen/oikea siirtää valintaa</li>
             <li>nuoli ylös/alas vaihtaa väriä</li>
             <li>Enter tarkistaa rivin</li>
@@ -601,7 +601,6 @@
           slot.addEventListener("click", () => {
             if (gameOver || rowIndex !== currentRow) return;
             selectedSlot = slotIndex;
-            cycleSlotColor(currentRow, slotIndex);
             renderBoard();
           });
           slots.appendChild(slot);
