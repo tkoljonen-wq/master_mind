@@ -485,6 +485,7 @@
 
     const CODE_LENGTH = 4;
     const MAX_ROWS = 10;
+    const STORAGE_KEY = "mastermindRetroGameStateV1";
 
     let secret = [];
     let guesses = [];
@@ -543,6 +544,7 @@
           if (gameOver) return;
           guesses[currentRow].pegs[selectedSlot] = idx;
           renderBoard();
+          saveGameState();
         });
         paletteEl.appendChild(btn);
       });
@@ -602,6 +604,7 @@
             if (gameOver || rowIndex !== currentRow) return;
             selectedSlot = slotIndex;
             renderBoard();
+            saveGameState();
           });
           slots.appendChild(slot);
         });
@@ -636,6 +639,7 @@
       guesses[currentRow].pegs = Array(CODE_LENGTH).fill(null);
       renderBoard();
       setStatus("Aktiivinen rivi tyhjennetty.");
+      saveGameState();
     }
 
     function scoreGuess(guessPegs, secretPegs) {
@@ -678,12 +682,58 @@
       return difficulty === "easy" ? "helppo" : "vaikea";
     }
 
+    function saveGameState() {
+      const state = {
+        secret,
+        guesses,
+        currentRow,
+        selectedSlot,
+        gameOver,
+        difficulty,
+        statusText: statusEl.textContent,
+        statusClass: statusEl.className
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadGameState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+
+        if (!state || !Array.isArray(state.secret) || !Array.isArray(state.guesses)) return false;
+        if (state.secret.length !== CODE_LENGTH || state.guesses.length !== MAX_ROWS) return false;
+
+        secret = state.secret;
+        guesses = state.guesses;
+        currentRow = Number.isInteger(state.currentRow) ? state.currentRow : 0;
+        selectedSlot = Number.isInteger(state.selectedSlot) ? state.selectedSlot : 0;
+        gameOver = Boolean(state.gameOver);
+        difficulty = state.difficulty === "easy" ? "easy" : "hard";
+
+        const selectedDifficulty = document.querySelector(`input[name="difficulty"][value="${difficulty}"]`);
+        if (selectedDifficulty) selectedDifficulty.checked = true;
+
+        renderSecret(gameOver);
+        renderBoard();
+        statusEl.textContent = state.statusText || `Jatkettiin aiempaa peliä. Vaikeustaso: ${getDifficultyLabel()}.`;
+        statusEl.className = state.statusClass || "status";
+        updateButtons();
+        return true;
+      } catch (error) {
+        console.error("Pelin tilan lataus epäonnistui:", error);
+        return false;
+      }
+    }
+
     function checkCurrentRow() {
       if (gameOver) return;
       const row = guesses[currentRow];
 
       if (row.pegs.some(v => v === null)) {
         setStatus("Täytä ensin kaikki neljä paikkaa.", "bad");
+        saveGameState();
         return;
       }
 
@@ -696,6 +746,7 @@
         renderSecret(true);
         setStatus(`Ratkaisit salaisen rivin yrityksellä ${currentRow + 1}. Vaikeustaso: ${getDifficultyLabel()}.`, "ok");
         updateButtons();
+        saveGameState();
         return;
       }
 
@@ -704,6 +755,7 @@
         renderSecret(true);
         setStatus(`Yritykset loppuivat. Salainen rivi paljastettiin. Vaikeustaso: ${getDifficultyLabel()}.`, "bad");
         updateButtons();
+        saveGameState();
         return;
       }
 
@@ -711,6 +763,7 @@
       selectedSlot = 0;
       renderBoard();
       setStatus("Vihjeet annettu. Jatka seuraavalle riville.");
+      saveGameState();
     }
 
     function initGame() {
@@ -724,6 +777,7 @@
       renderBoard();
       setStatus(`Uusi peli aloitettu. Vaikeustaso: ${getDifficultyLabel()}.`);
       updateButtons();
+      saveGameState();
     }
 
     document.addEventListener("keydown", (e) => {
@@ -732,26 +786,32 @@
       if (e.key === "ArrowLeft") {
         selectedSlot = Math.max(0, selectedSlot - 1);
         renderBoard();
+        saveGameState();
       } else if (e.key === "ArrowRight") {
         selectedSlot = Math.min(CODE_LENGTH - 1, selectedSlot + 1);
         renderBoard();
+        saveGameState();
       } else if (e.key === "ArrowUp") {
         cycleSlotColor(currentRow, selectedSlot);
         renderBoard();
+        saveGameState();
       } else if (e.key === "ArrowDown") {
         const current = guesses[currentRow].pegs[selectedSlot];
         guesses[currentRow].pegs[selectedSlot] = current === null ? COLORS.length - 1 : (current - 1 + COLORS.length) % COLORS.length;
         renderBoard();
+        saveGameState();
       } else if (e.key === "Enter") {
         checkCurrentRow();
       } else if (e.key === "Delete" || e.key === "Backspace") {
         guesses[currentRow].pegs[selectedSlot] = null;
         renderBoard();
+        saveGameState();
       } else {
         const n = Number(e.key);
         if (n >= 1 && n <= COLORS.length) {
           guesses[currentRow].pegs[selectedSlot] = n - 1;
           renderBoard();
+          saveGameState();
         }
       }
     });
@@ -765,7 +825,10 @@
     newBtn.addEventListener("click", initGame);
 
     buildPalette();
-    initGame();
+
+    if (!loadGameState()) {
+      initGame();
+    }
   </script>
 </body>
 </html>
