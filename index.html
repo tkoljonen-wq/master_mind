@@ -14,12 +14,8 @@
       --brass:#c7a86b;
       --brass-dark:#927543;
       --panel:#26180f;
-      --hole:#20140c;
-      --hole-rim:#4b2f1c;
       --text:#f2e2ba;
       --muted:#d0bc8a;
-      --ivory:#f0eadc;
-      --black:#181818;
       --row-gap:12px;
       --peg:30px;
       --hint:10px;
@@ -133,17 +129,18 @@
         inset 0 -2px 0 rgba(0,0,0,.14);
     }
 
-    .board-shell{
-      padding:18px;
-    }
-
-    .side{
-      padding:16px;
-    }
+    .board-shell{ padding:18px; }
+    .side{ padding:16px; }
 
     .board{
       display:grid;
       gap:var(--row-gap);
+    }
+
+    .palette-wrap{
+      margin-top:16px;
+      padding-top:14px;
+      border-top:1px solid rgba(255,255,255,.08);
     }
 
     .row{
@@ -259,9 +256,10 @@
 
     .palette{
       display:grid;
-      grid-template-columns:repeat(3, 1fr);
+      grid-template-columns:repeat(6, minmax(40px, 56px));
       gap:10px;
-      margin-bottom:16px;
+      margin-bottom:0;
+      justify-content:start;
     }
 
     .color-btn{
@@ -273,6 +271,34 @@
         inset 0 2px 3px rgba(255,255,255,.28),
         inset 0 -3px 6px rgba(0,0,0,.28),
         0 2px 0 rgba(0,0,0,.18);
+    }
+
+    .difficulty{
+      display:grid;
+      gap:8px;
+      margin:0 0 14px 0;
+    }
+
+    .difficulty label{
+      display:flex;
+      align-items:flex-start;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:12px;
+      background:rgba(0,0,0,.12);
+      border:1px solid rgba(255,255,255,.06);
+      cursor:pointer;
+    }
+
+    .difficulty input{
+      margin-top:2px;
+      accent-color:#d3b56b;
+    }
+
+    .difficulty-note{
+      font-size:12px;
+      color:#d8c390;
+      line-height:1.35;
     }
 
     .controls{
@@ -344,7 +370,6 @@
 
     @media (max-width: 860px){
       .content{ grid-template-columns:1fr; }
-      .side{ order:-1; }
     }
 
     @media (max-width: 560px){
@@ -360,7 +385,10 @@
         gap:8px;
       }
       .palette{
-        grid-template-columns:repeat(3, 1fr);
+        grid-template-columns:repeat(6, minmax(38px, 1fr));
+      }
+      .color-btn{
+        height:40px;
       }
     }
   </style>
@@ -386,6 +414,11 @@
     <div class="content">
       <div class="board-shell">
         <div class="board" id="board"></div>
+
+        <div class="palette-wrap">
+          <div class="section-title">Värit</div>
+          <div class="palette" id="palette"></div>
+        </div>
       </div>
 
       <div class="side">
@@ -397,8 +430,23 @@
           <div class="secret-slot"></div>
         </div>
 
-        <div class="section-title">Värit</div>
-        <div class="palette" id="palette"></div>
+        <div class="section-title">Vaikeustaso</div>
+        <div class="difficulty">
+          <label>
+            <input type="radio" name="difficulty" value="easy">
+            <div>
+              <div>Helppo</div>
+              <div class="difficulty-note">Salaisella rivillä sama väri voi esiintyä vain kerran.</div>
+            </div>
+          </label>
+          <label>
+            <input type="radio" name="difficulty" value="hard" checked>
+            <div>
+              <div>Vaikea</div>
+              <div class="difficulty-note">Nykyinen sääntö: sama väri voi esiintyä salaisella rivillä useita kertoja.</div>
+            </div>
+          </label>
+        </div>
 
         <div class="controls">
           <button class="ctrl primary" id="checkBtn">Tarkista rivi</button>
@@ -443,6 +491,7 @@
     let currentRow = 0;
     let selectedSlot = 0;
     let gameOver = false;
+    let difficulty = "hard";
 
     const boardEl = document.getElementById("board");
     const paletteEl = document.getElementById("palette");
@@ -451,12 +500,25 @@
     const checkBtn = document.getElementById("checkBtn");
     const clearBtn = document.getElementById("clearBtn");
     const newBtn = document.getElementById("newBtn");
+    const difficultyInputs = document.querySelectorAll('input[name="difficulty"]');
 
     function randInt(max) {
       return Math.floor(Math.random() * max);
     }
 
+    function shuffle(array) {
+      const a = [...array];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
     function makeSecret() {
+      if (difficulty === "easy") {
+        return shuffle([...Array(COLORS.length).keys()]).slice(0, CODE_LENGTH);
+      }
       return Array.from({ length: CODE_LENGTH }, () => randInt(COLORS.length));
     }
 
@@ -613,6 +675,10 @@
       clearBtn.disabled = gameOver;
     }
 
+    function getDifficultyLabel() {
+      return difficulty === "easy" ? "helppo" : "vaikea";
+    }
+
     function checkCurrentRow() {
       if (gameOver) return;
       const row = guesses[currentRow];
@@ -629,7 +695,7 @@
       if (result.exact === CODE_LENGTH) {
         gameOver = true;
         renderSecret(true);
-        setStatus(`Ratkaisit salaisen rivin yrityksellä ${currentRow + 1}.`, "ok");
+        setStatus(`Ratkaisit salaisen rivin yrityksellä ${currentRow + 1}. Vaikeustaso: ${getDifficultyLabel()}.`, "ok");
         updateButtons();
         return;
       }
@@ -637,7 +703,7 @@
       if (currentRow === MAX_ROWS - 1) {
         gameOver = true;
         renderSecret(true);
-        setStatus("Yritykset loppuivat. Salainen rivi paljastettiin.", "bad");
+        setStatus(`Yritykset loppuivat. Salainen rivi paljastettiin. Vaikeustaso: ${getDifficultyLabel()}.`, "bad");
         updateButtons();
         return;
       }
@@ -649,6 +715,7 @@
     }
 
     function initGame() {
+      difficulty = document.querySelector('input[name="difficulty"]:checked').value;
       secret = makeSecret();
       guesses = Array.from({ length: MAX_ROWS }, () => createEmptyGuess());
       currentRow = 0;
@@ -656,7 +723,7 @@
       gameOver = false;
       renderSecret(false);
       renderBoard();
-      setStatus("Uusi peli aloitettu.");
+      setStatus(`Uusi peli aloitettu. Vaikeustaso: ${getDifficultyLabel()}.`);
       updateButtons();
     }
 
@@ -688,6 +755,10 @@
           renderBoard();
         }
       }
+    });
+
+    difficultyInputs.forEach(input => {
+      input.addEventListener("change", initGame);
     });
 
     checkBtn.addEventListener("click", checkCurrentRow);
